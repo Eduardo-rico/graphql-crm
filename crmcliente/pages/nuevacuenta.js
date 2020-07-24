@@ -1,10 +1,38 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import { useRouter } from 'next/router';
+
+import { useMutation, gql } from '@apollo/client';
 
 import Layout from '../components/Layout';
 
+const NUEVA_CUENTA = gql`
+  mutation nuevoUsuario($input: UsuarioInput) {
+    nuevoUsuario(input: $input) {
+      id
+      nombre
+      apellido
+      email
+    }
+  }
+`;
+
 const nuevacuenta = () => {
+  //mutation para crear nuevos usuarios
+  const [nuevoUsuario] = useMutation(NUEVA_CUENTA);
+
+  //state para el mensaje
+  const [mensaje, guardarMensaje] = useState(null);
+
+  //router
+  const router = useRouter();
+
+  //obtener productor de Graphql
+  // const { data, loading, error } = useQuery(QUERY);
+
+  // console.log(loading); pasa loading a true cuando esta cargando algo
+  //error se vuelve undefinding
   //validacion del formulario
   const formik = useFormik({
     initialValues: {
@@ -23,15 +51,55 @@ const nuevacuenta = () => {
         .required('El password es obligatorio')
         .min(4, 'El password debe ser de al menos 4 caracteres')
     }),
-    onSubmit: (valores) => {
+    onSubmit: async (valores) => {
       console.log('enviando');
-      console.log(valores);
+      // console.log(valores);
+      const { nombre, apellido, email, password } = valores;
+      try {
+        const { data } = await nuevoUsuario({
+          variables: {
+            input: {
+              nombre,
+              apellido,
+              email,
+              password
+            }
+          }
+        });
+        // console.log(data);
+        //usuario creado correctamente
+        guardarMensaje(
+          `Se creo correctamente el Usuario: ${data.nuevoUsuario.nombre}`
+        );
+        setTimeout(() => {
+          guardarMensaje(null);
+        }, 2500);
+        //redirigir usuario para iniciar sesion
+        router.push('/login');
+      } catch (error) {
+        console.log(error.message);
+        guardarMensaje(error.message);
+        setTimeout(() => {
+          guardarMensaje(null);
+        }, 2500);
+      }
     }
   });
+
+  // if (loading) return 'cargando';
+
+  const mostrarMensaje = () => {
+    return (
+      <div className='bg-white py-2 px-3 w-full my-3 max-w-sm text-center mx-auto'>
+        <p>{mensaje}</p>
+      </div>
+    );
+  };
 
   return (
     <>
       <Layout>
+        {mensaje && mostrarMensaje()}
         <h1 className='text-center text-2xl text-white font-light'>
           Crear Nueva Cuenta
         </h1>
